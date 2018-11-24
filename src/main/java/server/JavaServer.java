@@ -46,6 +46,9 @@ public class JavaServer {
       if (args.length == 2) {
         sleep = Integer.parseInt(args[1]);
       }
+      if (args.length == 3) {
+          PATH = args[2];
+      }
 
       handler = new SearchHandler(id, nei, queue);
       processor = new Search.Processor(handler);
