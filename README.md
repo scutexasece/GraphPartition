@@ -6,4 +6,4 @@ How to run:
 1. mvn clean compile
 2. cd scripts
 3. bash run.sh
-4. bash kill.sh
+4. bash kill.sh # Kill all the processes.
