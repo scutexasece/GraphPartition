@@ -26,6 +26,11 @@ enum Operation {
   REPORT = 2
 }
 
+enum RMOperation {
+  NOTIFICATION,
+  CONFIRM
+}
+
 struct MessagePackage{
   1: i32 id,
   2: i32 len,
@@ -34,7 +39,15 @@ struct MessagePackage{
   5: i32 fromId,
   6: Operation op,
   7: double between,
-  8: list<i32> edge
+  8: list<i32> edge,
+  9: set<i32> seenVertices
+}
+
+struct RemovePakcage{
+  1: i32 id,
+  2: i32 to,
+  3: RMOperation op,
+  4: map<list<i32>, double> between
 }
 
 exception InvalidOperation {
@@ -44,6 +57,8 @@ exception InvalidOperation {
 
 service Search extends shared.SharedService {
    void ping(),
-   void search(1:MessagePackage msg)
+   void search(1:MessagePackage msg),
+   void remove(1:RemovePakcage msg)
 }
+
 

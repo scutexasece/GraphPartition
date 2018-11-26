@@ -19,6 +19,7 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
   private static final org.apache.thrift.protocol.TField OP_FIELD_DESC = new org.apache.thrift.protocol.TField("op", org.apache.thrift.protocol.TType.I32, (short)6);
   private static final org.apache.thrift.protocol.TField BETWEEN_FIELD_DESC = new org.apache.thrift.protocol.TField("between", org.apache.thrift.protocol.TType.DOUBLE, (short)7);
   private static final org.apache.thrift.protocol.TField EDGE_FIELD_DESC = new org.apache.thrift.protocol.TField("edge", org.apache.thrift.protocol.TType.LIST, (short)8);
+  private static final org.apache.thrift.protocol.TField SEEN_VERTICES_FIELD_DESC = new org.apache.thrift.protocol.TField("seenVertices", org.apache.thrift.protocol.TType.SET, (short)9);
 
   private static final org.apache.thrift.scheme.SchemeFactory STANDARD_SCHEME_FACTORY = new MessagePackageStandardSchemeFactory();
   private static final org.apache.thrift.scheme.SchemeFactory TUPLE_SCHEME_FACTORY = new MessagePackageTupleSchemeFactory();
@@ -35,6 +36,7 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
   public Operation op; // required
   public double between; // required
   public java.util.List<java.lang.Integer> edge; // required
+  public java.util.Set<java.lang.Integer> seenVertices; // required
 
   /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
   public enum _Fields implements org.apache.thrift.TFieldIdEnum {
@@ -49,7 +51,8 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
      */
     OP((short)6, "op"),
     BETWEEN((short)7, "between"),
-    EDGE((short)8, "edge");
+    EDGE((short)8, "edge"),
+    SEEN_VERTICES((short)9, "seenVertices");
 
     private static final java.util.Map<java.lang.String, _Fields> byName = new java.util.HashMap<java.lang.String, _Fields>();
 
@@ -80,6 +83,8 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
           return BETWEEN;
         case 8: // EDGE
           return EDGE;
+        case 9: // SEEN_VERTICES
+          return SEEN_VERTICES;
         default:
           return null;
       }
@@ -147,6 +152,9 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
     tmpMap.put(_Fields.EDGE, new org.apache.thrift.meta_data.FieldMetaData("edge", org.apache.thrift.TFieldRequirementType.DEFAULT, 
         new org.apache.thrift.meta_data.ListMetaData(org.apache.thrift.protocol.TType.LIST, 
             new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I32))));
+    tmpMap.put(_Fields.SEEN_VERTICES, new org.apache.thrift.meta_data.FieldMetaData("seenVertices", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+        new org.apache.thrift.meta_data.SetMetaData(org.apache.thrift.protocol.TType.SET, 
+            new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I32))));
     metaDataMap = java.util.Collections.unmodifiableMap(tmpMap);
     org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(MessagePackage.class, metaDataMap);
   }
@@ -162,7 +170,8 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
     int fromId,
     Operation op,
     double between,
-    java.util.List<java.lang.Integer> edge)
+    java.util.List<java.lang.Integer> edge,
+    java.util.Set<java.lang.Integer> seenVertices)
   {
     this();
     this.id = id;
@@ -179,6 +188,7 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
     this.between = between;
     setBetweenIsSet(true);
     this.edge = edge;
+    this.seenVertices = seenVertices;
   }
 
   /**
@@ -198,6 +208,10 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
     if (other.isSetEdge()) {
       java.util.List<java.lang.Integer> __this__edge = new java.util.ArrayList<java.lang.Integer>(other.edge);
       this.edge = __this__edge;
+    }
+    if (other.isSetSeenVertices()) {
+      java.util.Set<java.lang.Integer> __this__seenVertices = new java.util.HashSet<java.lang.Integer>(other.seenVertices);
+      this.seenVertices = __this__seenVertices;
     }
   }
 
@@ -221,6 +235,7 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
     setBetweenIsSet(false);
     this.between = 0.0;
     this.edge = null;
+    this.seenVertices = null;
   }
 
   public int getId() {
@@ -432,6 +447,45 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
     }
   }
 
+  public int getSeenVerticesSize() {
+    return (this.seenVertices == null) ? 0 : this.seenVertices.size();
+  }
+
+  public java.util.Iterator<java.lang.Integer> getSeenVerticesIterator() {
+    return (this.seenVertices == null) ? null : this.seenVertices.iterator();
+  }
+
+  public void addToSeenVertices(int elem) {
+    if (this.seenVertices == null) {
+      this.seenVertices = new java.util.HashSet<java.lang.Integer>();
+    }
+    this.seenVertices.add(elem);
+  }
+
+  public java.util.Set<java.lang.Integer> getSeenVertices() {
+    return this.seenVertices;
+  }
+
+  public MessagePackage setSeenVertices(java.util.Set<java.lang.Integer> seenVertices) {
+    this.seenVertices = seenVertices;
+    return this;
+  }
+
+  public void unsetSeenVertices() {
+    this.seenVertices = null;
+  }
+
+  /** Returns true if field seenVertices is set (has been assigned a value) and false otherwise */
+  public boolean isSetSeenVertices() {
+    return this.seenVertices != null;
+  }
+
+  public void setSeenVerticesIsSet(boolean value) {
+    if (!value) {
+      this.seenVertices = null;
+    }
+  }
+
   public void setFieldValue(_Fields field, java.lang.Object value) {
     switch (field) {
     case ID:
@@ -498,6 +552,14 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
       }
       break;
 
+    case SEEN_VERTICES:
+      if (value == null) {
+        unsetSeenVertices();
+      } else {
+        setSeenVertices((java.util.Set<java.lang.Integer>)value);
+      }
+      break;
+
     }
   }
 
@@ -527,6 +589,9 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
     case EDGE:
       return getEdge();
 
+    case SEEN_VERTICES:
+      return getSeenVertices();
+
     }
     throw new java.lang.IllegalStateException();
   }
@@ -554,6 +619,8 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
       return isSetBetween();
     case EDGE:
       return isSetEdge();
+    case SEEN_VERTICES:
+      return isSetSeenVertices();
     }
     throw new java.lang.IllegalStateException();
   }
@@ -645,6 +712,15 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
         return false;
     }
 
+    boolean this_present_seenVertices = true && this.isSetSeenVertices();
+    boolean that_present_seenVertices = true && that.isSetSeenVertices();
+    if (this_present_seenVertices || that_present_seenVertices) {
+      if (!(this_present_seenVertices && that_present_seenVertices))
+        return false;
+      if (!this.seenVertices.equals(that.seenVertices))
+        return false;
+    }
+
     return true;
   }
 
@@ -671,6 +747,10 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
     hashCode = hashCode * 8191 + ((isSetEdge()) ? 131071 : 524287);
     if (isSetEdge())
       hashCode = hashCode * 8191 + edge.hashCode();
+
+    hashCode = hashCode * 8191 + ((isSetSeenVertices()) ? 131071 : 524287);
+    if (isSetSeenVertices())
+      hashCode = hashCode * 8191 + seenVertices.hashCode();
 
     return hashCode;
   }
@@ -763,6 +843,16 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
         return lastComparison;
       }
     }
+    lastComparison = java.lang.Boolean.valueOf(isSetSeenVertices()).compareTo(other.isSetSeenVertices());
+    if (lastComparison != 0) {
+      return lastComparison;
+    }
+    if (isSetSeenVertices()) {
+      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.seenVertices, other.seenVertices);
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+    }
     return 0;
   }
 
@@ -820,6 +910,14 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
       sb.append("null");
     } else {
       sb.append(this.edge);
+    }
+    first = false;
+    if (!first) sb.append(", ");
+    sb.append("seenVertices:");
+    if (this.seenVertices == null) {
+      sb.append("null");
+    } else {
+      sb.append(this.seenVertices);
     }
     first = false;
     sb.append(")");
@@ -941,6 +1039,24 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
             break;
+          case 9: // SEEN_VERTICES
+            if (schemeField.type == org.apache.thrift.protocol.TType.SET) {
+              {
+                org.apache.thrift.protocol.TSet _set3 = iprot.readSetBegin();
+                struct.seenVertices = new java.util.HashSet<java.lang.Integer>(2*_set3.size);
+                int _elem4;
+                for (int _i5 = 0; _i5 < _set3.size; ++_i5)
+                {
+                  _elem4 = iprot.readI32();
+                  struct.seenVertices.add(_elem4);
+                }
+                iprot.readSetEnd();
+              }
+              struct.setSeenVerticesIsSet(true);
+            } else { 
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+            }
+            break;
           default:
             org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
         }
@@ -983,11 +1099,23 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
         oprot.writeFieldBegin(EDGE_FIELD_DESC);
         {
           oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.I32, struct.edge.size()));
-          for (int _iter3 : struct.edge)
+          for (int _iter6 : struct.edge)
           {
-            oprot.writeI32(_iter3);
+            oprot.writeI32(_iter6);
           }
           oprot.writeListEnd();
+        }
+        oprot.writeFieldEnd();
+      }
+      if (struct.seenVertices != null) {
+        oprot.writeFieldBegin(SEEN_VERTICES_FIELD_DESC);
+        {
+          oprot.writeSetBegin(new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.I32, struct.seenVertices.size()));
+          for (int _iter7 : struct.seenVertices)
+          {
+            oprot.writeI32(_iter7);
+          }
+          oprot.writeSetEnd();
         }
         oprot.writeFieldEnd();
       }
@@ -1033,7 +1161,10 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
       if (struct.isSetEdge()) {
         optionals.set(7);
       }
-      oprot.writeBitSet(optionals, 8);
+      if (struct.isSetSeenVertices()) {
+        optionals.set(8);
+      }
+      oprot.writeBitSet(optionals, 9);
       if (struct.isSetId()) {
         oprot.writeI32(struct.id);
       }
@@ -1058,9 +1189,18 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
       if (struct.isSetEdge()) {
         {
           oprot.writeI32(struct.edge.size());
-          for (int _iter4 : struct.edge)
+          for (int _iter8 : struct.edge)
           {
-            oprot.writeI32(_iter4);
+            oprot.writeI32(_iter8);
+          }
+        }
+      }
+      if (struct.isSetSeenVertices()) {
+        {
+          oprot.writeI32(struct.seenVertices.size());
+          for (int _iter9 : struct.seenVertices)
+          {
+            oprot.writeI32(_iter9);
           }
         }
       }
@@ -1069,7 +1209,7 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
     @Override
     public void read(org.apache.thrift.protocol.TProtocol prot, MessagePackage struct) throws org.apache.thrift.TException {
       org.apache.thrift.protocol.TTupleProtocol iprot = (org.apache.thrift.protocol.TTupleProtocol) prot;
-      java.util.BitSet incoming = iprot.readBitSet(8);
+      java.util.BitSet incoming = iprot.readBitSet(9);
       if (incoming.get(0)) {
         struct.id = iprot.readI32();
         struct.setIdIsSet(true);
@@ -1100,16 +1240,29 @@ public class MessagePackage implements org.apache.thrift.TBase<MessagePackage, M
       }
       if (incoming.get(7)) {
         {
-          org.apache.thrift.protocol.TList _list5 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.I32, iprot.readI32());
-          struct.edge = new java.util.ArrayList<java.lang.Integer>(_list5.size);
-          int _elem6;
-          for (int _i7 = 0; _i7 < _list5.size; ++_i7)
+          org.apache.thrift.protocol.TList _list10 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.I32, iprot.readI32());
+          struct.edge = new java.util.ArrayList<java.lang.Integer>(_list10.size);
+          int _elem11;
+          for (int _i12 = 0; _i12 < _list10.size; ++_i12)
           {
-            _elem6 = iprot.readI32();
-            struct.edge.add(_elem6);
+            _elem11 = iprot.readI32();
+            struct.edge.add(_elem11);
           }
         }
         struct.setEdgeIsSet(true);
+      }
+      if (incoming.get(8)) {
+        {
+          org.apache.thrift.protocol.TSet _set13 = new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.I32, iprot.readI32());
+          struct.seenVertices = new java.util.HashSet<java.lang.Integer>(2*_set13.size);
+          int _elem14;
+          for (int _i15 = 0; _i15 < _set13.size; ++_i15)
+          {
+            _elem14 = iprot.readI32();
+            struct.seenVertices.add(_elem14);
+          }
+        }
+        struct.setSeenVerticesIsSet(true);
       }
     }
   }

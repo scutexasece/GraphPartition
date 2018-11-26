@@ -6,5 +6,5 @@ INPUT_PATH=/Users/sycheng/IdeaProjects/thrift/scripts/input/
 
 for i in {1..5}
 do
-    java -cp $MVN_DEPENDENCY server.JavaServer $i 1000 $INPUT_PATH &
+    java -cp $MVN_DEPENDENCY server.JavaServer $i 1000 $INPUT_PATH 1  &
 done

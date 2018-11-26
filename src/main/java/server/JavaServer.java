@@ -9,6 +9,7 @@ import org.apache.thrift.server.TSimpleServer;
 import org.apache.thrift.transport.*;
 import search.MessagePackage;
 import search.Operation;
+import search.RemovePakcage;
 import search.Search;
 
 import java.io.File;
@@ -22,9 +23,13 @@ import java.util.concurrent.LinkedBlockingDeque;
 public class JavaServer {
   public static String PATH = "/Users/sycheng/Documents/thrift-0.11.0/tutorial/test/input/";
 
+  public static String OUTPUT_PATH = "";
+
   public static SearchHandler handler;
 
   public static Search.Processor processor;
+
+  public static int round = 1;
 
   public static int id;
 
@@ -33,6 +38,7 @@ public class JavaServer {
   public static List<Integer> nei = new ArrayList<>();
 
   private static BlockingQueue<MessagePackage>  queue = new LinkedBlockingDeque<>(1000);
+  private static BlockingQueue<RemovePakcage>  rmQueue = new LinkedBlockingDeque<>(1000);
 
   public static void main(String[] args) {
     try {
@@ -43,14 +49,19 @@ public class JavaServer {
 
       id = Integer.parseInt(args[0]);
       int sleep = 5000;
-      if (args.length == 2) {
+      if (args.length >= 2) {
         sleep = Integer.parseInt(args[1]);
       }
-      if (args.length == 3) {
-          PATH = args[2];
+      if (args.length >= 3) {
+        PATH = args[2];
+      }
+      if (args.length >= 4) {
+        round = Integer.parseInt(args[3]);
       }
 
-      handler = new SearchHandler(id, nei, queue);
+      OUTPUT_PATH = PATH + "/output/" + round;
+
+      handler = new SearchHandler(id, nei, queue, rmQueue);
       processor = new Search.Processor(handler);
       getNeighbors(nei);
 
@@ -63,12 +74,21 @@ public class JavaServer {
           System.out.println(e.fillInStackTrace());
         }
       };
+      Runnable deleteSend = () -> {
+        try {
+          deletionSendWorker();
+        } catch (TException | InterruptedException e) {
+          e.printStackTrace();
+          System.out.println(e.fillInStackTrace());
+        }
+      };
 
       new Thread(simple).start();
       Thread.sleep(sleep);
         sendInitMsg();
 
       new Thread(send).start();
+      new Thread(deleteSend).start();
 
     } catch (Exception x) {
       x.printStackTrace();
@@ -92,8 +112,14 @@ public class JavaServer {
   public static void sendWorker() throws TException, InterruptedException {
 
     while (true) {
-//      System.out.println("id:"+id + "," + queue);
       MessagePackage msg = queue.take();
+      sendMessage(msg.to, msg);
+    }
+  }
+  public static void deletionSendWorker() throws TException, InterruptedException {
+
+    while (true) {
+      RemovePakcage msg = rmQueue.take();
       sendMessage(msg.to, msg);
     }
   }
@@ -148,9 +174,27 @@ public class JavaServer {
 
     transport.close();
   }
+  private static void sendMessage(int toId, RemovePakcage msg) throws TException {
+    msg.id = id;
+    System.out.println("send remove message:" + msg + ", from["+id+"]");
+    TTransport transport;
+    transport = new TSocket("localhost", portNumber + toId);
+    transport.open();
+
+    TProtocol protocol = new TBinaryProtocol(transport);
+    Search.Client client = new Search.Client(protocol);
+
+    performRemoving(client, msg);
+
+    transport.close();
+  }
 
   private static void perform(Search.Client client, MessagePackage msg) throws TException {
     client.ping();
     client.search(msg);
+  }
+  private static void performRemoving(Search.Client client, RemovePakcage msg) throws TException {
+    client.ping();
+    client.remove(msg);
   }
 }

@@ -2,13 +2,19 @@ package server;
 
 import org.apache.thrift.TException;
 import search.MessagePackage;
+import search.RMOperation;
+import search.RemovePakcage;
 import search.Search;
 import shared.SharedStruct;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 
 import static search.Operation.REPORT;
+import static server.JavaServer.OUTPUT_PATH;
 
 public class SearchHandler implements Search.Iface {
 
@@ -18,18 +24,48 @@ public class SearchHandler implements Search.Iface {
 
   private BlockingQueue<MessagePackage> queue;
 
+  private BlockingQueue<RemovePakcage> rmQueue;
+
   private Map<Integer, Double> betweenEdge = new HashMap<>();
+
+  private Set<Integer> notificated = new HashSet<>();
+
+  private int notificationCount = 0;
+
+  private double maxBetweenness = 0.0;
 
   private Set<List<Integer>> edges = new HashSet<>();
 
+  private Set<Integer> allNodes = new HashSet<>();
+
+  private Map<List<Integer>, EdgeItem> edgeBetween = new HashMap<>();
+
   private int id;
+
   public List<Integer> nei;
 
-  public SearchHandler(int id, List<Integer> nei, BlockingQueue<MessagePackage> queue) {
+  private boolean isTerminated = false;
+
+  private int confirmationCount = 0;
+
+  private PriorityQueue<EdgeItem> heap = new PriorityQueue<EdgeItem>((a, b) -> {
+    if (a.between != b.between) {
+      return Double.compare(b.between, a.between);
+    }
+    for (int i = 0; i < a.edge.size(); i++) {
+      if (a.edge.get(i) == b.edge.get(i)) continue;
+      return b.edge.get(i) - a.edge.get(i);
+    }
+    return 0;
+  });
+
+
+  public SearchHandler(int id, List<Integer> nei, BlockingQueue<MessagePackage> queue, BlockingQueue<RemovePakcage> rmQueue) {
     log = new HashMap<>();
     this.id = id;
     this.nei = nei;
     this.queue = queue;
+    this.rmQueue = rmQueue;
   }
 
   public void ping() {
@@ -39,7 +75,7 @@ public class SearchHandler implements Search.Iface {
   @Override
   public void search(MessagePackage msg) throws TException {
     System.out.println("search(" + id + "), from(" + msg.fromId+ ") len:" + msg.len + ", origin:" + msg.id + ", op:" + msg.op + ", between:" + msg.between + " edge:" + msg.edge);
-    System.out.println("id:" + id + ", betweenness:" + betweenEdge);
+//    System.out.println("id:" + id + ", betweenness:" + betweenEdge);
     if (!cntMap.containsKey(msg.id)) {
       cntMap.put(msg.id, new LengthCounter());
     }
@@ -61,6 +97,87 @@ public class SearchHandler implements Search.Iface {
     logEvent(msg);
   }
 
+  @Override
+  public void remove(RemovePakcage msg) throws TException {
+    System.out.println("remove(" + id + "), from(" + msg.id+ ") len:" + ", op:" + msg.op + ", between:" + msg.between);
+
+    switch (msg.op) {
+      case NOTIFICATION:
+        acceptNotification(msg);
+        break;
+      case CONFIRM:
+        confirmationCount++;
+        System.out.println("confirm:[" + id + "]|" + confirmationCount);
+        if (confirmationCount == allNodes.size()) {
+          if (isTerminated) {
+            sendDelete();
+          }
+        }
+        break;
+      default:
+
+    }
+  }
+
+  private void acceptNotification(RemovePakcage msg) {
+    Set<EdgeItem> set = new HashSet<>();
+    for (List<Integer> key : msg.between.keySet()) {
+      EdgeItem edgeItem = new EdgeItem();
+      edgeItem.edge = key;
+      edgeItem.between = msg.between.get(key);
+      set.add(edgeItem);
+    }
+    if (!notificated.contains(msg.id)) {
+      notificated.add(msg.id);
+      notificationCount++;
+      set.stream().forEach(edgeItem -> {
+        if (edgeBetween.containsKey(edgeItem.edge)) {
+            if (edgeBetween.get(edgeItem.edge).between < edgeItem.between) {
+              heap.remove(edgeBetween.get(edgeItem.edge));
+              edgeBetween.put(edgeItem.edge, edgeItem);
+            }
+        }
+        else {
+          edgeBetween.put(edgeItem.edge, edgeItem);
+        }
+      });
+      heap.addAll(set);
+      maxBetweenness = heap.peek().between;
+    }
+    if (notificationCount == allNodes.size()) {
+      while (!heap.isEmpty() && heap.peek().between == maxBetweenness) {
+        EdgeItem edgeItem = heap.poll();
+        System.out.println("Pop edge:" + edgeItem + ", with heap:" + heap);
+        deleteEdge(edgeItem);
+      }
+      dumpOutput();
+      System.out.println(id + "| EXIT!!!!");
+    }
+  }
+
+  private void dumpOutput() {
+      StringBuilder str = new StringBuilder();
+      for (int n : nei) str.append(n).append(" ");
+      byte[] bytes = str.toString().getBytes();
+      try (OutputStream out = new FileOutputStream(OUTPUT_PATH + "/" + id, false)) {
+        out.write(bytes);
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+  }
+
+  private void deleteEdge(EdgeItem edgeItem) {
+    int neighbor = id == edgeItem.edge.get(0) ? edgeItem.edge.get(1) : edgeItem.edge.get(0);
+    Set<Integer> result = new HashSet<>();
+    result.addAll(nei);
+    if (result.contains(neighbor)) {
+      result.remove(neighbor);
+      System.out.println(id + "|###Delete neighbor " + neighbor + "nei:" + result);
+    }
+    nei.clear();
+    nei.addAll(result);
+  }
+
   private void checkTerminate(MessagePackage msg) {
     int cnt = 0;
     LengthCounter lc = cntMap.get(msg.id);
@@ -69,12 +186,37 @@ public class SearchHandler implements Search.Iface {
           continue;
       cnt++;
     }
+    if (cnt == 0) {
+      if (!isTerminated) {
+        isTerminated = true;
+        System.out.println(id + "!################### Terminate!" + betweenEdge + ", seen vertices:" + allNodes);
+//        sendDelete();
+          sendConfirmation();
+      }
+    }
+  }
+
+  private void sendConfirmation() {
+    for (int n : allNodes) {
+      RemovePakcage removePakcage = new RemovePakcage();
+      removePakcage.id = id;
+      removePakcage.op = RMOperation.CONFIRM;
+      removePakcage.to = n;
+      sendMessage(removePakcage);
+    }
+    if (confirmationCount == allNodes.size()) {
+      sendDelete();
+    }
   }
 
   private void acceptReport(MessagePackage msg) {
     LengthCounter lc = cntMap.get(msg.id);
     if (lc.parents.contains(msg.fromId))
       lc.parents.remove(msg.fromId);
+
+    this.allNodes.addAll(msg.seenVertices);
+    if (allNodes.contains(id))
+      allNodes.remove(id);
 
     lc.reported.add(msg.fromId);
 
@@ -99,10 +241,10 @@ public class SearchHandler implements Search.Iface {
   }
 
   private void computeBetween() {
-    System.out.println("$$$[l"+cntMap);
+//    System.out.println("$$$[l"+cntMap);
     for (int key : cntMap.keySet()) {
       LengthCounter lc = cntMap.get(key);
-      System.out.println("$$$[lkkk"+lc.edgeSet);
+//      System.out.println("$$$[lkkk"+lc.edgeSet);
       lc.edgeSet.stream().filter(edge -> !edges.contains(edge))
               .forEach(edge -> {
                 edges.add(edge);
@@ -120,6 +262,9 @@ public class SearchHandler implements Search.Iface {
     msg.edge = new ArrayList<>();
     msg.edge.add(id);
     msg.edge.add(n);
+    msg.seenVertices = new HashSet<>();
+    msg.seenVertices.add(id);
+    msg.seenVertices.addAll(lc.dist.keySet());
 
     lc.between.put(id, msg.between);
 
@@ -187,7 +332,43 @@ public class SearchHandler implements Search.Iface {
         sendMessage(msg, n);
       }
       computeBetween();
-      System.out.println(id + "!################### Terminate!" + betweenEdge);
+  }
+
+  private void sendDelete() {
+    double max = 0;
+    for (int key : betweenEdge.keySet()) {
+      max = Math.max(max, betweenEdge.get(key));
+    }
+
+    Map<List<Integer>, Double> between = new HashMap<>();
+
+    for (int key : betweenEdge.keySet()) {
+      if (betweenEdge.get(key) == max) {
+          List<Integer> edge = new ArrayList<>();
+          edge.add(id);
+          edge.add(key);
+          Collections.sort(edge);
+          edge.add(id);
+          between.put(edge, max);
+      }
+    }
+
+    for (int n : allNodes) {
+      RemovePakcage removePakcage = new RemovePakcage();
+      removePakcage.id = id;
+      removePakcage.between = between;
+      removePakcage.op = RMOperation.NOTIFICATION;
+      removePakcage.to = n;
+      sendMessage(removePakcage);
+    }
+  }
+
+  private void sendMessage(RemovePakcage removePakcage) {
+    try {
+      rmQueue.put(new RemovePakcage(removePakcage));
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
   }
 
   private void setDist(MessagePackage msg, LengthCounter lc, int fromId) {
@@ -244,5 +425,13 @@ public class SearchHandler implements Search.Iface {
     }
   }
 
+  class EdgeItem {
+    public List<Integer> edge;
+    public double between;
+    @Override
+    public String toString() {
+        return "edges:" + edge + ", between:" + between;
+    }
+  }
 }
 
