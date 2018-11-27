@@ -18,35 +18,38 @@ import static server.JavaServer.OUTPUT_PATH;
 
 public class SearchHandler implements Search.Iface {
 
-  private HashMap<Integer,SharedStruct> log;
+  private volatile HashMap<Integer,SharedStruct> log;
 
-  private Map<Integer, LengthCounter> cntMap = new HashMap<>();
+  private volatile Map<Integer, LengthCounter> cntMap = new HashMap<>();
 
-  private BlockingQueue<MessagePackage> queue;
+  private volatile BlockingQueue<MessagePackage> queue;
 
-  private BlockingQueue<RemovePakcage> rmQueue;
+  private volatile BlockingQueue<RemovePakcage> rmQueue;
 
-  private Map<Integer, Double> betweenEdge = new HashMap<>();
+  private volatile Map<Integer, Double> betweenEdge = new HashMap<>();
 
-  private Set<Integer> notificated = new HashSet<>();
+  private volatile Set<Integer> notificated = new HashSet<>();
 
-  private int notificationCount = 0;
+  private volatile int notificationCount = 0;
 
-  private double maxBetweenness = 0.0;
+  private volatile double maxBetweenness = 0.0;
 
-  private Set<List<Integer>> edges = new HashSet<>();
+  private volatile Set<List<Integer>> edges = new HashSet<>();
 
-  private Set<Integer> allNodes = new HashSet<>();
+  private volatile Set<Integer> allNodes = new HashSet<>();
 
-  private Map<List<Integer>, EdgeItem> edgeBetween = new HashMap<>();
+  private volatile Map<List<Integer>, EdgeItem> edgeBetween = new HashMap<>();
 
-  private int id;
+  private volatile int id;
 
-  public List<Integer> nei;
+  private volatile List<Integer> nei;
 
-  private boolean isTerminated = false;
+  private volatile boolean isTerminated = false;
 
-  private int confirmationCount = 0;
+  private volatile int confirmationCount = 0;
+
+  private volatile boolean startWaiting = false;
+
 
   private PriorityQueue<EdgeItem> heap = new PriorityQueue<EdgeItem>((a, b) -> {
     if (a.between != b.between) {
@@ -74,7 +77,7 @@ public class SearchHandler implements Search.Iface {
 
   @Override
   public void search(MessagePackage msg) throws TException {
-    System.out.println("search(" + id + "), from(" + msg.fromId+ ") len:" + msg.len + ", origin:" + msg.id + ", op:" + msg.op + ", between:" + msg.between + " edge:" + msg.edge);
+    System.out.println("search(" + id + "), from(" + msg.fromId+ ") len:" + msg.len + " cnt:"  + msg.cnt +  ", origin:" + msg.id + ", op:" + msg.op + ", between:" + msg.between + " edge:" + msg.edge);
 //    System.out.println("id:" + id + ", betweenness:" + betweenEdge);
     if (!cntMap.containsKey(msg.id)) {
       cntMap.put(msg.id, new LengthCounter());
@@ -191,7 +194,8 @@ public class SearchHandler implements Search.Iface {
         isTerminated = true;
         System.out.println(id + "!################### Terminate!" + betweenEdge + ", seen vertices:" + allNodes);
 //        sendDelete();
-          sendConfirmation();
+          if (id == msg.id)
+            sendConfirmation();
       }
     }
   }
@@ -230,13 +234,13 @@ public class SearchHandler implements Search.Iface {
     int reportedCntAndParentsCnt = 0;
 
     for (int n : nei) {
-      if (lc.parents.contains(n) || lc.reported.contains(n) || (lc.dist.containsKey(n) && lc.dist.get(n) - 1 == lc.length))
+      if (lc.parents.contains(n) || lc.reported.contains(n) || (lc.seenD.containsKey(n) && lc.seenD.get(n) - 1 == lc.length))
         continue;
       reportedCntAndParentsCnt++;
     }
 
     if (reportedCntAndParentsCnt == 0)
-      sendReport(msg, lc, reportedCntAndParentsCnt);
+      sendReport(msg);
 
   }
 
@@ -262,8 +266,10 @@ public class SearchHandler implements Search.Iface {
     msg.edge = new ArrayList<>();
     msg.edge.add(id);
     msg.edge.add(n);
-    msg.seenVertices = new HashSet<>();
+    if (msg.seenVertices == null)
+      msg.seenVertices = new HashSet<>();
     msg.seenVertices.add(id);
+    msg.seenVertices.addAll(lc.seenD.keySet());
     msg.seenVertices.addAll(lc.dist.keySet());
 
     lc.between.put(id, msg.between);
@@ -279,7 +285,11 @@ public class SearchHandler implements Search.Iface {
   }
 
   private double computeFluid(LengthCounter lc) {
-      return (lc.fluid + 1.0) / lc.parents.size();
+      int sum = 0;
+      for (int key : lc.contr.keySet()) {
+        sum += lc.contr.get(key);
+      }
+      return (lc.fluid + 1.0) / sum;
   }
 
   private void sendMessage(MessagePackage msg, int n) {
@@ -290,6 +300,15 @@ public class SearchHandler implements Search.Iface {
       queue.put(new MessagePackage(msg));
     } catch (InterruptedException e) {
       e.printStackTrace();
+    }
+  }
+  private void setDist(MessagePackage msg, LengthCounter lc, int fromId) {
+    if (!lc.seenD.containsKey(fromId)) {
+      lc.seenD.put(fromId, Integer.MAX_VALUE);
+    }
+    int d = lc.seenD.get(fromId);
+    if (d > msg.len) {
+      lc.seenD.put(fromId, msg.len);
     }
   }
 
@@ -303,12 +322,20 @@ public class SearchHandler implements Search.Iface {
       lc.length = msg.len;
       lc.cnt = msg.cnt;
 
+      lc.dist.put(msg.fromId, msg.len);
+      lc.contr.put(msg.fromId, msg.cnt);
+
       msg.len++;
       sendUpdate(msg, msg.fromId, lc);
-
     }
-    else if (msg.len == lc.length) {
-      lc.cnt += msg.cnt;
+    else if (msg.len == lc.length && (!lc.dist.containsKey(msg.fromId))
+            ||(lc.contr.containsKey(msg.fromId) && lc.contr.get(msg.fromId) < msg.cnt)) {
+      int diff = msg.cnt - lc.contr.getOrDefault(msg.fromId, 0);
+      lc.cnt += diff;
+      System.out.println("cnt:" + lc.cnt + " diff:" + diff + "id|" + id);
+
+      lc.dist.put(msg.fromId, msg.len);
+      lc.contr.put(msg.fromId, msg.cnt);
       msg.cnt = lc.cnt;
 
       lc.parents.add(msg.fromId);
@@ -316,17 +343,38 @@ public class SearchHandler implements Search.Iface {
       msg.len++;
       sendUpdate(msg, msg.fromId, lc);
     }
+
     int cnt = 0;
     for (int n : this.nei) {
-      if (lc.parents.contains(n) ||lc.reported.contains(n)|| (lc.dist.containsKey(n) && lc.dist.get(n) - 1 == lc.length))
+      if (lc.parents.contains(n) ||lc.reported.contains(n)|| (lc.seenD.containsKey(n) && lc.seenD.get(n) - 1 == lc.length))
         continue;
       cnt++;
     }
-    if (cnt == 0)
-      sendReport(msg, lc, cnt);
+    if (cnt == 0) {
+      if (!startWaiting) {
+        startWaiting = true;
+        Runnable run = () -> {
+          System.out.println("\n\n\n\n\n\n\n\n\n\n");
+          try {
+            Thread.sleep(2000);
+          } catch (InterruptedException e) {
+            e.printStackTrace();
+          }
+          sendReport(msg);
+        };
+
+        new Thread(run).start();
+      }
+    }
   }
 
-  private void sendReport(MessagePackage msg, LengthCounter lc, int cnt) {
+
+  private void sendReport(MessagePackage  inputMsg) {
+      LengthCounter lc = cntMap.get(inputMsg.id);
+    System.out.println("cntmap in thread:" + cntMap);
+    MessagePackage msg = new MessagePackage(inputMsg);
+    msg.cnt = lc.cnt;
+    System.out.println("msg cnt:" + msg.cnt);
       for (int n : lc.parents) {
         generateReport(msg, lc, computeFluid(lc), n);
         sendMessage(msg, n);
@@ -371,17 +419,6 @@ public class SearchHandler implements Search.Iface {
     }
   }
 
-  private void setDist(MessagePackage msg, LengthCounter lc, int fromId) {
-    if (!lc.dist.containsKey(fromId)) {
-      lc.dist.put(fromId, Integer.MAX_VALUE);
-    }
-    int d = lc.dist.get(fromId);
-    if (d > msg.len) {
-      lc.dist.put(fromId, msg.len);
-      lc.contr.put(fromId, msg.cnt);
-    }
-  }
-
   private void logEvent(MessagePackage msg) {
     SharedStruct entry = new SharedStruct();
     entry.key = id;
@@ -402,16 +439,17 @@ public class SearchHandler implements Search.Iface {
   }
 
   class LengthCounter {
-    public int length;
-    public int cnt;
-    public Set<Integer> parents = new HashSet<>();
-    public Map<Integer, Integer> dist = new HashMap<>();
-    public Map<Integer, Integer> contr = new HashMap<>();
-    public Set<Integer> reported = new HashSet<>();
-    public double fluid = 0.0;
-    public Set<List<Integer>> edgeSet = new HashSet<>();
+    public volatile int length;
+    public volatile int cnt;
+    public volatile Set<Integer> parents = new HashSet<>();
+    public volatile Map<Integer, Integer> dist = new HashMap<>();
+    public volatile Map<Integer, Integer> seenD = new HashMap<>();
+    public volatile Map<Integer, Integer> contr = new HashMap<>();
+    public volatile Set<Integer> reported = new HashSet<>();
+    public volatile double fluid = 0.0;
+    public volatile Set<List<Integer>> edgeSet = new HashSet<>();
 
-    public Map<Integer, Double> between = new HashMap<>();
+    public volatile  Map<Integer, Double> between = new HashMap<>();
 
 
     public LengthCounter() {
