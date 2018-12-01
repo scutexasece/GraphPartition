@@ -190,13 +190,11 @@ public class SearchHandler implements Search.Iface {
       cnt++;
     }
     if (cnt == 0) {
-      if (!isTerminated) {
         isTerminated = true;
         System.out.println(id + "!################### Terminate!" + betweenEdge + ", seen vertices:" + allNodes);
 //        sendDelete();
-          if (id == msg.id)
-            sendConfirmation();
-      }
+        if (id == msg.id)
+          sendConfirmation();
     }
   }
 
@@ -207,6 +205,7 @@ public class SearchHandler implements Search.Iface {
       removePakcage.op = RMOperation.CONFIRM;
       removePakcage.to = n;
       sendMessage(removePakcage);
+      System.out.println("id:"+id +"send confirm:" + removePakcage);
     }
     if (confirmationCount == allNodes.size()) {
       sendDelete();
@@ -245,7 +244,7 @@ public class SearchHandler implements Search.Iface {
   }
 
   private void computeBetween() {
-//    System.out.println("$$$[l"+cntMap);
+    System.out.println(id+"$$$[l"+cntMap);
     for (int key : cntMap.keySet()) {
       LengthCounter lc = cntMap.get(key);
 //      System.out.println("$$$[lkkk"+lc.edgeSet);
@@ -379,7 +378,7 @@ public class SearchHandler implements Search.Iface {
         generateReport(msg, lc, computeFluid(lc), n);
         sendMessage(msg, n);
       }
-      computeBetween();
+//      computeBetween();
   }
 
   private void sendDelete() {
@@ -459,7 +458,7 @@ public class SearchHandler implements Search.Iface {
     @Override
     public String toString() {
       return "len:" + this.length + ", cnt:" + this.cnt + ", dist:" + dist + ", r1eported" + reported + ", parent:" + parents
-              + " contribute:" + contr + " fluid:" + fluid + " between:" + between + ", edge:" + edgeSet;
+              + " contribute:" + contr + " fluid:" + fluid + " between:" + between + ", edge:" + edgeSet + " seenD:" + seenD;
     }
   }
 
